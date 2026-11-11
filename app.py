@@ -48,7 +48,7 @@ def gai_chat():
         data = request.get_json(force=True, silent=True) or {}
         msg = data.get('message', '') or data.get('msg', '')
         payload = {
-            "model": "openai/gpt-oss-120b",
+            "ymodel": "openai/gpt-oss-120b",
             "messages": [
                 {"role": "system", "content": MEMORY_TEXT},
                 {"role": "user", "content": msg}
@@ -61,11 +61,9 @@ def gai_chat():
         return jsonify({"reply": reply})
     except Exception as e:
         return jsonify({"reply": "Boss, Groq wahala small - " + str(e)})
-
 @app.route('/gai-status', methods=['GET'])
 def gai_status():
-    return jsonify({"status": "CHAT GAI dey ON", "owner": "Abdulmalik Muazu Abba", "model": "openai/gpt-oss-120b", "location": "Port Harcourt"})
-
+    return jsonify({"status": "CHAT GAI I mdey ON", "owner": "Abdulmalik Muazu Abba", "model": "openai/gpt-oss-120b", "location": "Port Harcourt"})
 HTML = """
 <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -128,7 +126,7 @@ def chat():
         except Exception as e:
             return jsonify({"reply": "Memory error: " + str(e)})
     try:
-        r = requests.post(GROQ_URL, headers={"Authorization": "Bearer " + GROQ_KEY, "Content-Type": "application/json"}, json={"model": "openai/gpt-oss-20b", "messages": [{"role": "system", "content": MEMORY_TEXT}, {"role": "user", "content": msg}], "temperature": 0.7, "max_tokens": 600}, timeout=20)
+        r = requests.post(GROQ_URL, headers={"Authorization": "Bearer " + GROQ_KEY, "Content-Type": "application/json"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "system", "content": MEMORY_TEXT}, {"role": "user", "content": msg}], "temperature": 0.7, "max_tokens": 600}, timeout=20)
         d = r.json()
         txt = d["choices"][0]["message"]["content"]
         return jsonify({"reply": txt})

@@ -9,6 +9,7 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
     return response
+
 GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
 if not GROQ_KEY and os.path.exists("key.txt"):
     try:
@@ -48,7 +49,7 @@ def gai_chat():
         data = request.get_json(force=True, silent=True) or {}
         msg = data.get('message', '') or data.get('msg', '')
         payload = {
-            "ymodel": "openai/gpt-oss-120b",
+            "model": "openai/gpt-oss-120b",
             "messages": [
                 {"role": "system", "content": MEMORY_TEXT},
                 {"role": "user", "content": msg}
@@ -61,9 +62,11 @@ def gai_chat():
         return jsonify({"reply": reply})
     except Exception as e:
         return jsonify({"reply": "Boss, Groq wahala small - " + str(e)})
+
 @app.route('/gai-status', methods=['GET'])
 def gai_status():
     return jsonify({"status": "CHAT GAI I mdey ON", "owner": "Abdulmalik Muazu Abba", "model": "openai/gpt-oss-120b", "location": "Port Harcourt"})
+
 HTML = """
 <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>

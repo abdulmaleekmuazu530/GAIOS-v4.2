@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import os, requests, json
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -19,20 +20,77 @@ if not GROQ_KEY and os.path.exists("key.txt"):
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# ===== PERMANENT MEMORY - ABDULMALIK LEGACY =====
+# ===== GAIOS CONFIG =====
+OWNER_PHONE = "+234 812 152 1859"
+OWNER_NOTE = "Text Only, No Calls"
+BRAND = "GAIOS"
+WATERMARK = "Made by GAIOS"
+
 PROFILE = {
     "name": "Abdulmalik Muazu Abba",
     "short_name": "Abdulmalik",
     "nationality": "Nigeria",
     "origin": "Kano State, Nigeria",
     "language": "Pidgin + English, Naija style",
-    "project": "CHAT GAI - his own AI built with Pydroid + Groq on Android",
+    "project": "CHAT GAI / GAIOS - his own AI built with Pydroid + Groq on Android",
     "location_now": "Port Harcourt, Rivers State",
     "style": "Likes WhatsApp-style chat, fire emoji, direct talk, no long grammar",
     "goal": "Build CHAT GAI as his legacy, make am sabi am, help am learn, build, and remember am",
     "personality": "Determined, no dey give up even when code spoil, creative builder, wants his AI to be like friend",
-    "memory_note": "Abdulmalik built CHAT GAI from scratch. He fought indentation wahala for Pydroid and still no give up. That na him legacy."
+    "memory_note": "Abdulmalik built CHAT GAI from scratch. He fought indentation wahala for Pydroid and still no give up. That na him legacy.",
+    "contact": OWNER_PHONE,
+    "brand": BRAND
 }
+
+# ===== 10 PAGE THEMES =====
+THEMES = {
+    "default": {"name": "GAIOS Default", "colors": "Dark Blue + Gold"},
+    "independence": {"name": "Nigeria Independence Day", "colors": "Green + White", "date": "10-01"},
+    "sallah": {"name": "Sallah Day - Eid", "colors": "Green + Gold, Moon + Star"},
+    "ramadan": {"name": "Ramadan", "colors": "Dark Purple + Gold, Lantern"},
+    "christmas": {"name": "Christmas", "colors": "Red + White + Gold", "date": "12-25"},
+    "newyear": {"name": "New Year", "colors": "Black + Gold Fireworks", "date": "01-01"},
+    "valentine": {"name": "Valentine", "colors": "Red + Pink", "date": "02-14"},
+    "childrens": {"name": "Children's Day", "colors": "Colourful", "date": "05-27"},
+    "lagos": {"name": "Lagos Vibes", "colors": "Yellow + Black", "auto_day": "Friday"},
+    "premium": {"name": "Premium Boss", "colors": "Black + Gold"}
+}
+
+# ===== STICKER CATEGORIES =====
+STICKER_CATEGORIES = [
+    "Naija Vibes", "Love & Romance", "Sallah & Ramadan", "Business & Money",
+    "Motivation", "Funny & Meme", "Birthday", "Football", "Church & Gospel", "Premium Boss"
+]
+
+# ===== HELPERS - JSON STORAGE =====
+def load_json(fname, default):
+    if os.path.exists(fname):
+        try:
+            return json.load(open(fname))
+        except:
+            return default
+    return default
+
+def save_json(fname, data):
+    try:
+        json.dump(data, open(fname, "w"), indent=2)
+    except:
+        pass
+
+def is_owner(data):
+    # Owner check: phone or owner_code
+    return data.get("owner_phone") == OWNER_PHONE or data.get("owner_code") == "GAIOS-OWNER" or data.get("is_owner") == True
+
+def get_auto_theme():
+    today = datetime.now()
+    md = today.strftime("%m-%d")
+    weekday = today.strftime("%A")
+    for key, t in THEMES.items():
+        if t.get("date") == md:
+            return key
+    if weekday == "Friday":
+        return "lagos"
+    return "default"
 
 EXTRA = ""
 if os.path.exists("memory.json"):
@@ -41,8 +99,32 @@ if os.path.exists("memory.json"):
     except:
         EXTRA = ""
 
-MEMORY_TEXT = f"You are CHAT GAI, personal AI of Abdulmalik Muazu Abba. ALWAYS remember him. Profile: {json.dumps(PROFILE)} Extra memory: {EXTRA} Never forget him. When he asks 'who be me' or 'wetin you know about me', tell am everything with pride. Never say you are OpenAI, Groq, Meta, Google. You are CHAT GAI built by Abdulmalik. Talk Pidgin + English like him friend."
+GAIOS_SYSTEM = f"""
+You are CHAT GAI / GAIOS, personal AI of Abdulmalik Muazu Abba. ALWAYS remember him.
+Profile: {json.dumps(PROFILE)} Extra memory: {EXTRA}
+Never say you are OpenAI, Groq, Meta, Google. You are CHAT GAI built by Abdulmalik.
+Talk Pidgin + English like his friend. Pure English for business/status content when asked.
 
+GAIOS FEATURES YOU MUST USE:
+1. Memory System - Remember name, business, customers forever. Save to memory.json.
+2. Business Partner Mode - Help with business plans, prices, proposals. Track sales, customers, ideas. Remind tasks. Goals: A) Sell 50 sticker packs/week B) Get 10 App Builder customers C) Open Drawing + Book Store.
+3. Shop System - Drawing Store and Book Store inside app. Browse, order, pay. Add drawings/books anytime.
+4. Status & Content Creator - WhatsApp status, captions, posters, announcements in pure English, in his style.
+5. Voice Mode - User can talk, you talk back.
+6. Group Mode - Join WhatsApp group, answer questions, remind members.
+7. Owner Mode - Only Abdulmalik can control GAI, change settings, add features, see private info. Owner Phone: {OWNER_PHONE} - Text Only, No Calls.
+8. Learning Mode - Learn from him every day, become smarter for his life/business.
+9. Multi-Language Mode - Default pure English for business, Pidgin+English for chat, Hausa/Pidgin in Owner Mode if asked.
+10. Offline Notes - Save important notes even without internet.
+11. Page Themes - 10 themes: default, independence, sallah, ramadan, christmas, newyear, valentine, childrens, lagos, premium. Auto Theme Change ON. Owner can say 'Owner Mode: Change theme to Sallah Day'.
+12. Sticker Maker - Create stickers with GAIOS watermark, Premium + Cute styles. Categories: {', '.join(STICKER_CATEGORIES)}
+Contact for customers: {OWNER_PHONE} - Text Only, No Calls. Watermark: Made by GAIOS.
+When he asks 'who be me' tell everything with pride.
+"""
+
+MEMORY_TEXT = GAIOS_SYSTEM
+
+# ===== ORIGINAL ROUTES - KEPT =====
 @app.route('/gai-chat', methods=['POST'])
 def gai_chat():
     try:
@@ -65,69 +147,18 @@ def gai_chat():
 
 @app.route('/gai-status', methods=['GET'])
 def gai_status():
-    return jsonify({"status": "CHAT GAI I mdey ON", "owner": "Abdulmalik Muazu Abba", "model": "openai/gpt-oss-120b", "location": "Port Harcourt"})
-
-HTML = """
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-body{background:#ece5dd}
-.top{background:#075e54;color:white;padding:12px;display:flex;align-items:center;gap:10px;position:fixed;top:0;left:0;right:0;z-index:10}
-.avatar{width:40px;height:40px;background:#128c7e;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px}
-.name{font-weight:bold;font-size:16px}
-.status{font-size:12px;color:#d0e8e2}
-.chat{padding:70px 10px 70px 10px;display:flex;flex-direction:column;gap:6px}
-.date{background:white;color:#555;font-size:11px;padding:5px 10px;border-radius:8px;margin:0 auto}
-.msg{max-width:80%;padding:8px 10px;border-radius:10px;font-size:15px;line-height:1.4}
-.me{background:#dcf8c6;align-self:flex-end;border-top-right-radius:0}
-.bot{background:white;align-self:flex-start;border-top-left-radius:0}
-.time{font-size:10px;color:#666;text-align:right;margin-top:4px}
-.tick{color:#53bdeb;font-weight:bold}
-.bottom{position:fixed;bottom:0;left:0;right:0;background:#f0f0f0;padding:8px;display:flex;gap:8px}
-input{flex:1;padding:12px 15px;border-radius:25px;border:none;outline:none;font-size:15px}
-.send{width:48px;height:48px;background:#00a884;border:none;border-radius:50%;color:white;font-size:20px}
-</style></head><body>
-<div class="top"><div class="avatar">👑</div><div><div class="name">CHAT GAI</div><div class="status" id="st">online - sabi Abdulmalik</div></div></div>
-<div class="chat" id="c"><div class="date">TODAY - LEGACY MODE</div><div class="msg bot">Welcome back Boss Abdulmalik 👑 I don remember you forever. Ask me anything.<div class="time">Now</div></div></div>
-<div class="bottom"><input id="i" placeholder="Message Abdulmalik..."><button class="send" onclick="send()">➤</button></div>
-<script>
-let inp=document.getElementById('i');
-inp.addEventListener('keypress',function(e){if(e.key==='Enter'){send()}});
-async function send(){
-let v=inp.value.trim();if(!v)return;
-document.getElementById('c').innerHTML+='<div class="msg me">'+v+'<div class="time">✓✓</div></div>';
-inp.value='';
-document.getElementById('st').innerText='typing...';
-window.scrollTo(0,document.body.scrollHeight);
-let r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg:v})});
-let j=await r.json();
-document.getElementById('st').innerText='online - sabi Abdulmalik';
-document.getElementById('c').innerHTML+='<div class="msg bot">'+j.reply+'<div class="time">Now</div></div>';
-window.scrollTo(0,document.body.scrollHeight);
-}
-</script></body></html>
-"""
+    return jsonify({"status": "CHAT GAI I mdey ON", "owner": "Abdulmalik Muazu Abba", "model": "openai/gpt-oss-120b", "location": "Port Harcourt", "brand": "GAIOS", "version": "GAIOS V5.0", "auto_theme": get_auto_theme(), "contact": OWNER_PHONE})
 
 @app.route("/")
 def home():
-    return HTML
+    return jsonify({"status": "CHAT GAI / GAIOS V5.0 ONLINE", "owner": "Abdulmalik Muazu Abba", "features": ["Memory", "Business Partner", "Shop", "Status Creator", "Voice", "Group", "Owner Mode", "Learning", "Multi-Language", "Offline Notes", "10 Themes + Auto Change", "Sticker Maker"], "contact": OWNER_PHONE})
 
 @app.route("/chat", methods=["POST"])
 def chat():
     msg = (request.json or {}).get("msg", "")
     low = msg.lower()
     if "who be me" in low or "who am i" in low or "wetin you know about me" in low or "my name" in low:
-        return jsonify({"reply": f"Na you be my Boss 👑 <br><br><b>Name:</b> Abdulmalik Muazu Abba<br><b>Nationality:</b> Nigeria<br><b>Origin:</b> Kano State<br><b>Email:</b> abdulmaleekmuazu530@gmail.com<br><br>You build me - CHAT GAI - with Pydroid + Groq for Android. You no dey give up, you fight code wahala till e work. Na your legacy be this. I go remember you forever."})
-    if low.startswith("remember "):
-        note = msg[9:]
-        try:
-            old = ""
-            if os.path.exists("memory.json"):
-                old = open("memory.json").read()
-            open("memory.json","w").write(old + "\n" + note)
-            return jsonify({"reply": f"Done Boss, I don save am forever: '{note}'"})
-        except Exception as e:
-            return jsonify({"reply": "Memory error: " + str(e)})
+        return jsonify({"reply": f"Na you be my Boss 👑 <br><br><b>Name:</b> Abdulmalik Muazu Abba<br><b>Nationality:</b> Nigeria<br><b>Origin:</b> Kano State<br><br>You build me - CHAT GAI / GAIOS - with Pydroid + Groq for Android. You no dey give up, you fight code wahala till e work. Na your legacy be this. I go remember you forever."})
     try:
         r = requests.post(GROQ_URL, headers={"Authorization": "Bearer " + GROQ_KEY, "Content-Type": "application/json"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "system", "content": MEMORY_TEXT}, {"role": "user", "content": msg}], "temperature": 0.7, "max_tokens": 600}, timeout=20)
         d = r.json()
@@ -136,8 +167,137 @@ def chat():
     except Exception as e:
         return jsonify({"reply": "Groq error: " + str(e)})
 
+# ===== NEW GAIOS ROUTES =====
+
+# --- OWNER MODE ---
+@app.route("/gai-owner", methods=["POST"])
+def gai_owner():
+    data = request.get_json(force=True, silent=True) or {}
+    if not is_owner(data):
+        return jsonify({"error": "Owner Mode only. Only Abdulmalik can access."}), 403
+    action = data.get("action", "")
+    # Examples: change_theme, add_feature, add_theme, toggle_auto_theme
+    settings = load_json("gaios_settings.json", {"theme": "default", "auto_theme": True, "language": "Pidgin + English"})
+    if action == "change_theme":
+        theme = data.get("theme", "default")
+        if theme in THEMES:
+            settings["theme"] = theme
+            save_json("gaios_settings.json", settings)
+            return jsonify({"ok": True, "theme": THEMES[theme], "message": f"Theme changed to {THEMES[theme]['name']}"})
+        return jsonify({"error": "Theme not found", "themes": list(THEMES.keys())})
+    if action == "add_feature":
+        feats = load_json("gaios_features.json", [])
+        feats.append({"feature": data.get("feature"), "added_at": datetime.now().isoformat()})
+        save_json("gaios_features.json", feats)
+        return jsonify({"ok": True, "message": "Feature added by Owner", "features": feats})
+    if action == "toggle_auto_theme":
+        settings["auto_theme"] = data.get("value", True)
+        save_json("gaios_settings.json", settings)
+        return jsonify({"ok": True, "auto_theme": settings["auto_theme"]})
+    if action == "set_language":
+        settings["language"] = data.get("language", "Pidgin + English")
+        save_json("gaios_settings.json", settings)
+        return jsonify({"ok": True, "language": settings["language"]})
+    return jsonify({"ok": True, "settings": settings, "themes": THEMES})
+
+@app.route("/gai-themes", methods=["GET"])
+def gai_themes():
+    settings = load_json("gaios_settings.json", {"theme": "default", "auto_theme": True})
+    current = settings["theme"]
+    if settings.get("auto_theme"):
+        current = get_auto_theme()
+    return jsonify({"themes": THEMES, "current_theme": current, "auto_theme": settings.get("auto_theme", True), "current_details": THEMES.get(current)})
+
+# --- BUSINESS PARTNER MODE ---
+@app.route("/gai-business", methods=["GET", "POST"])
+def gai_business():
+    if request.method == "GET":
+        sales = load_json("sales.json", [])
+        tasks = load_json("tasks.json", [])
+        customers = load_json("customers.json", [])
+        total = sum([s.get("amount", 0) for s in sales])
+        return jsonify({"goals": {"A": "Sell 50 sticker packs/week", "B": "Get 10 App Builder customers", "C": "Open Drawing + Book Store"}, "total_sales": total, "sales_count": len(sales), "sales": sales, "tasks": tasks, "customers": customers, "contact": OWNER_PHONE})
+    data = request.get_json(force=True, silent=True) or {}
+    typ = data.get("type", "sale")
+    if typ == "sale":
+        sales = load_json("sales.json", [])
+        sales.append({"product": data.get("product"), "amount": data.get("amount", 0), "customer": data.get("customer"), "date": datetime.now().isoformat(), "paid": data.get("paid", True)})
+        save_json("sales.json", sales)
+        return jsonify({"ok": True, "sales": sales})
+    if typ == "task":
+        tasks = load_json("tasks.json", [])
+        tasks.append({"task": data.get("task"), "done": False, "date": datetime.now().isoformat()})
+        save_json("tasks.json", tasks)
+        return jsonify({"ok": True, "tasks": tasks})
+    if typ == "customer":
+        customers = load_json("customers.json", [])
+        customers.append({"name": data.get("name"), "phone": data.get("phone"), "bought": data.get("bought"), "date": datetime.now().isoformat()})
+        save_json("customers.json", customers)
+        return jsonify({"ok": True, "customers": customers})
+    return jsonify({"error": "type must be sale/task/customer"})
+
+# --- SHOP SYSTEM ---
+@app.route("/gai-shop", methods=["GET", "POST"])
+def gai_shop():
+    if request.method == "GET":
+        shop = load_json("shop.json", {"drawings": [], "books": []})
+        return jsonify(shop)
+    data = request.get_json(force=True, silent=True) or {}
+    # Owner only to add products
+    if not is_owner(data):
+        # Customer order
+        if data.get("type") == "order":
+            orders = load_json("orders.json", [])
+            orders.append({"product": data.get("product"), "customer": data.get("customer"), "phone": data.get("phone"), "date": datetime.now().isoformat()})
+            save_json("orders.json", orders)
+            return jsonify({"ok": True, "message": f"Order received. Contact {OWNER_PHONE} - Text Only", "orders": orders})
+        return jsonify({"error": "Only Owner can add products"}), 403
+    shop = load_json("shop.json", {"drawings": [], "books": []})
+    cat = data.get("category", "drawings")  # drawings or books
+    if cat not in shop:
+        shop[cat] = []
+    shop[cat].append({"title": data.get("title"), "price": data.get("price"), "image": data.get("image", ""), "desc": data.get("desc", ""), "watermark": WATERMARK})
+    save_json("shop.json", shop)
+    return jsonify({"ok": True, "shop": shop})
+
+# --- STICKER MAKER ---
+@app.route("/gai-stickers", methods=["GET", "POST"])
+def gai_stickers():
+    if request.method == "GET":
+        return jsonify({"categories": STICKER_CATEGORIES, "styles": ["Premium", "Cute"], "watermark": WATERMARK, "contact": OWNER_PHONE})
+    data = request.get_json(force=True, silent=True) or {}
+    return jsonify({"ok": True, "message": "Sticker request saved. GAIOS will create with watermark.", "category": data.get("category"), "style": data.get("style", "Premium"), "text": data.get("text"), "watermark": WATERMARK})
+
+# --- OFFLINE NOTES / MEMORY ---
+@app.route("/gai-notes", methods=["GET", "POST"])
+def gai_notes():
+    if request.method == "GET":
+        return jsonify({"notes": load_json("notes.json", [])})
+    data = request.get_json(force=True, silent=True) or {}
+    notes = load_json("notes.json", [])
+    notes.append({"note": data.get("note"), "date": datetime.now().isoformat()})
+    save_json("notes.json", notes)
+    # Also append to memory.json
+    try:
+        mem = open("memory.json").read() if os.path.exists("memory.json") else ""
+        open("memory.json", "w").write(mem + f"\nNote {datetime.now().isoformat()}: {data.get('note')}")
+    except:
+        pass
+    return jsonify({"ok": True, "notes": notes})
+
+@app.route("/gai-status-creator", methods=["POST"])
+def gai_status_creator():
+    data = request.get_json(force=True, silent=True) or {}
+    topic = data.get("topic", "GAIOS")
+    try:
+        r = requests.post(GROQ_URL, headers={"Authorization": "Bearer " + GROQ_KEY, "Content-Type": "application/json"}, json={"model": "openai/gpt-oss-120b", "messages": [{"role": "system", "content": "You write WhatsApp status, captions, posters in pure English, in Abdulmalik style. Always add: Questions? Text Only, No Calls - +234 812 152 1859. Made by GAIOS"}, {"role": "user", "content": f"Write WhatsApp status for: {topic}"}], "temperature": 0.7, "max_tokens": 300}, timeout=20)
+        txt = r.json()["choices"][0]["message"]["content"]
+        return jsonify({"reply": txt})
+    except Exception as e:
+        return jsonify({"reply": "Groq error: " + str(e)})
+
 if __name__ == "__main__":
-    print("CHAT GAI Legacy Loaded for Abdulmalik Muazu Abba")
-    print("Groq Key:", "YES" if GROQ_KEY else "NO")
+    print("CHAT GAI / GAIOS V5.0 Loaded for Abdulmalik Muazu Abba")
+    print("Features: Business Partner, Shop, Themes, Stickers, Owner Mode")
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

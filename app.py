@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import os, requests, json
 from datetime import datetime
 
@@ -25,6 +25,7 @@ OWNER_PHONE = "+234 812 152 1859"
 OWNER_NOTE = "Text Only, No Calls"
 BRAND = "GAIOS"
 WATERMARK = "Made by GAIOS"
+OWNER_PASSWORD = "Amleek@900"
 
 PROFILE = {
     "name": "Abdulmalik Muazu Abba",
@@ -42,7 +43,6 @@ PROFILE = {
     "brand": BRAND
 }
 
-# ===== 10 PAGE THEMES =====
 THEMES = {
     "default": {"name": "GAIOS Default", "colors": "Dark Blue + Gold"},
     "independence": {"name": "Nigeria Independence Day", "colors": "Green + White", "date": "10-01"},
@@ -56,13 +56,11 @@ THEMES = {
     "premium": {"name": "Premium Boss", "colors": "Black + Gold"}
 }
 
-# ===== STICKER CATEGORIES =====
 STICKER_CATEGORIES = [
     "Naija Vibes", "Love & Romance", "Sallah & Ramadan", "Business & Money",
     "Motivation", "Funny & Meme", "Birthday", "Football", "Church & Gospel", "Premium Boss"
 ]
 
-# ===== HELPERS - JSON STORAGE =====
 def load_json(fname, default):
     if os.path.exists(fname):
         try:
@@ -78,8 +76,8 @@ def save_json(fname, data):
         pass
 
 def is_owner(data):
-    # Owner check: phone or owner_code
-    return data.get("owner_phone") == OWNER_PHONE or data.get("owner_code") == "GAIOS-OWNER" or data.get("is_owner") == True
+    # NEW: password check + old checks
+    return data.get("password") == OWNER_PASSWORD or data.get("owner_password") == OWNER_PASSWORD or data.get("owner_phone") == OWNER_PHONE or data.get("owner_code") == "GAIOS-OWNER" or data.get("is_owner") == True
 
 def get_auto_theme():
     today = datetime.now()
@@ -120,24 +118,55 @@ GAIOS FEATURES YOU MUST USE:
 12. Sticker Maker - Create stickers with GAIOS watermark, Premium + Cute styles. Categories: {', '.join(STICKER_CATEGORIES)}
 Contact for customers: {OWNER_PHONE} - Text Only, No Calls. Watermark: Made by GAIOS.
 When he asks 'who be me' tell everything with pride.
+PRIVACY RULE: Normal users see only chat. No buttons, no settings. Only Owner can change anything.
 """
 
 MEMORY_TEXT = GAIOS_SYSTEM
 
-# ===== ORIGINAL ROUTES - KEPT =====
+# ===== FRONTEND - NO BUTTONS FOR USERS =====
+@app.route("/app")
+def app_page():
+    return render_template("index.html")
+
+@app.route("/")
+def home():
+    return jsonify({"status": "CHAT GAI / GAIOS V5.0 ONLINE", "owner": "Abdulmalik Muazu Abba", "features": ["Memory", "Business Partner", "Shop", "Status Creator", "Voice", "Group", "Owner Mode", "Learning", "Multi-Language", "Offline Notes", "10 Themes + Auto Change", "Sticker Maker", "Image/Voice/Clip Upload"], "contact": OWNER_PHONE, "app": "/app - Open this for chat"})
+
+# ===== OWNER LOGIN - NEW - LONG PRESS LOGO 10 SEC =====
+@app.route("/gai-owner-login", methods=["POST"])
+def gai_owner_login():
+    data = request.get_json(force=True, silent=True) or {}
+    password = data.get("password", "") or data.get("owner_password", "")
+    if password == OWNER_PASSWORD:
+        return jsonify({"ok": True, "message": "Welcome Boss, Owner Mode ON", "owner": "Abdulmalik Muazu Abba", "contact": OWNER_PHONE})
+    return jsonify({"ok": False, "message": "Wrong password - Owner only"}), 403
+
+# ===== UPLOAD - IMAGE / VOICE / CLIP - USER CAN SEND BUT CANNOT CHANGE ANYTHING =====
+@app.route("/gai-upload", methods=["POST"])
+def gai_upload():
+    try:
+        # Works with form-data file or JSON base64
+        if "file" in request.files:
+            f = request.files["file"]
+            filename = f.filename or "upload"
+            # Save to uploads folder
+            os.makedirs("uploads", exist_ok=True)
+            path = os.path.join("uploads", filename)
+            f.save(path)
+            return jsonify({"ok": True, "message": f"Received {filename}. GAIOS will read image / voice / clip. No settings changed.", "file": filename, "watermark": WATERMARK})
+        data = request.get_json(force=True, silent=True) or {}
+        if data.get("file_name") or data.get("type"):
+            return jsonify({"ok": True, "message": f"Received {data.get('type','file')} - {data.get('file_name','upload')}. GAIOS will read it. No settings changed.", "watermark": WATERMARK})
+        return jsonify({"ok": True, "message": "Send image, voice or clip using file field.", "watermark": WATERMARK})
+    except Exception as e:
+        return jsonify({"ok": False, "message": str(e)}), 500
+
 @app.route('/gai-chat', methods=['POST'])
 def gai_chat():
     try:
         data = request.get_json(force=True, silent=True) or {}
         msg = data.get('message', '') or data.get('msg', '')
-        payload = {
-            "model": "openai/gpt-oss-120b",
-            "messages": [
-                {"role": "system", "content": MEMORY_TEXT},
-                {"role": "user", "content": msg}
-            ],
-            "temperature": 0.7
-        }
+        payload = {"model": "openai/gpt-oss-120b", "messages": [{"role": "system", "content": MEMORY_TEXT}, {"role": "user", "content": msg}], "temperature": 0.7}
         headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
         r = requests.post(GROQ_URL, json=payload, headers=headers, timeout=30)
         reply = r.json()['choices'][0]['message']['content']
@@ -149,13 +178,10 @@ def gai_chat():
 def gai_status():
     return jsonify({"status": "CHAT GAI I mdey ON", "owner": "Abdulmalik Muazu Abba", "model": "openai/gpt-oss-120b", "location": "Port Harcourt", "brand": "GAIOS", "version": "GAIOS V5.0", "auto_theme": get_auto_theme(), "contact": OWNER_PHONE})
 
-@app.route("/")
-def home():
-    return jsonify({"status": "CHAT GAI / GAIOS V5.0 ONLINE", "owner": "Abdulmalik Muazu Abba", "features": ["Memory", "Business Partner", "Shop", "Status Creator", "Voice", "Group", "Owner Mode", "Learning", "Multi-Language", "Offline Notes", "10 Themes + Auto Change", "Sticker Maker"], "contact": OWNER_PHONE})
-
 @app.route("/chat", methods=["POST"])
 def chat():
-    msg = (request.json or {}).get("msg", "")
+    data = request.get_json(force=True, silent=True) or {}
+    msg = data.get("msg", "") or data.get("message", "")
     low = msg.lower()
     if "who be me" in low or "who am i" in low or "wetin you know about me" in low or "my name" in low:
         return jsonify({"reply": f"Na you be my Boss 👑 <br><br><b>Name:</b> Abdulmalik Muazu Abba<br><b>Nationality:</b> Nigeria<br><b>Origin:</b> Kano State<br><br>You build me - CHAT GAI / GAIOS - with Pydroid + Groq for Android. You no dey give up, you fight code wahala till e work. Na your legacy be this. I go remember you forever."})
@@ -167,16 +193,12 @@ def chat():
     except Exception as e:
         return jsonify({"reply": "Groq error: " + str(e)})
 
-# ===== NEW GAIOS ROUTES =====
-
-# --- OWNER MODE ---
 @app.route("/gai-owner", methods=["POST"])
 def gai_owner():
     data = request.get_json(force=True, silent=True) or {}
     if not is_owner(data):
         return jsonify({"error": "Owner Mode only. Only Abdulmalik can access."}), 403
     action = data.get("action", "")
-    # Examples: change_theme, add_feature, add_theme, toggle_auto_theme
     settings = load_json("gaios_settings.json", {"theme": "default", "auto_theme": True, "language": "Pidgin + English"})
     if action == "change_theme":
         theme = data.get("theme", "default")
@@ -208,7 +230,6 @@ def gai_themes():
         current = get_auto_theme()
     return jsonify({"themes": THEMES, "current_theme": current, "auto_theme": settings.get("auto_theme", True), "current_details": THEMES.get(current)})
 
-# --- BUSINESS PARTNER MODE ---
 @app.route("/gai-business", methods=["GET", "POST"])
 def gai_business():
     if request.method == "GET":
@@ -236,16 +257,13 @@ def gai_business():
         return jsonify({"ok": True, "customers": customers})
     return jsonify({"error": "type must be sale/task/customer"})
 
-# --- SHOP SYSTEM ---
 @app.route("/gai-shop", methods=["GET", "POST"])
 def gai_shop():
     if request.method == "GET":
         shop = load_json("shop.json", {"drawings": [], "books": []})
         return jsonify(shop)
     data = request.get_json(force=True, silent=True) or {}
-    # Owner only to add products
     if not is_owner(data):
-        # Customer order
         if data.get("type") == "order":
             orders = load_json("orders.json", [])
             orders.append({"product": data.get("product"), "customer": data.get("customer"), "phone": data.get("phone"), "date": datetime.now().isoformat()})
@@ -253,14 +271,13 @@ def gai_shop():
             return jsonify({"ok": True, "message": f"Order received. Contact {OWNER_PHONE} - Text Only", "orders": orders})
         return jsonify({"error": "Only Owner can add products"}), 403
     shop = load_json("shop.json", {"drawings": [], "books": []})
-    cat = data.get("category", "drawings")  # drawings or books
+    cat = data.get("category", "drawings")
     if cat not in shop:
         shop[cat] = []
     shop[cat].append({"title": data.get("title"), "price": data.get("price"), "image": data.get("image", ""), "desc": data.get("desc", ""), "watermark": WATERMARK})
     save_json("shop.json", shop)
     return jsonify({"ok": True, "shop": shop})
 
-# --- STICKER MAKER ---
 @app.route("/gai-stickers", methods=["GET", "POST"])
 def gai_stickers():
     if request.method == "GET":
@@ -268,7 +285,6 @@ def gai_stickers():
     data = request.get_json(force=True, silent=True) or {}
     return jsonify({"ok": True, "message": "Sticker request saved. GAIOS will create with watermark.", "category": data.get("category"), "style": data.get("style", "Premium"), "text": data.get("text"), "watermark": WATERMARK})
 
-# --- OFFLINE NOTES / MEMORY ---
 @app.route("/gai-notes", methods=["GET", "POST"])
 def gai_notes():
     if request.method == "GET":
@@ -277,7 +293,6 @@ def gai_notes():
     notes = load_json("notes.json", [])
     notes.append({"note": data.get("note"), "date": datetime.now().isoformat()})
     save_json("notes.json", notes)
-    # Also append to memory.json
     try:
         mem = open("memory.json").read() if os.path.exists("memory.json") else ""
         open("memory.json", "w").write(mem + f"\nNote {datetime.now().isoformat()}: {data.get('note')}")
@@ -298,6 +313,6 @@ def gai_status_creator():
 
 if __name__ == "__main__":
     print("CHAT GAI / GAIOS V5.0 Loaded for Abdulmalik Muazu Abba")
-    print("Features: Business Partner, Shop, Themes, Stickers, Owner Mode")
+    print("Features: Business Partner, Shop, Themes, Stickers, Owner Mode, Upload")
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
